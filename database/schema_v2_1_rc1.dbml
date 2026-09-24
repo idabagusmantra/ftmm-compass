@@ -1,0 +1,485 @@
+Project FTMM_COMPASS_Database_V2_1_RC1 {
+  database_type: 'PostgreSQL'
+  Note: 'Integrated baseline. SQL companion is authoritative for CHECKs, triggers, views, and helper functions.'
+}
+
+TableGroup Identity_Student {
+  users
+  study_programs
+  student_profiles
+}
+
+TableGroup Curriculum_History {
+  curricula
+  curriculum_cohort_rules
+  student_curriculum_assignments
+}
+
+TableGroup Source_Staging {
+  source_documents
+  catalog_source_records
+}
+
+TableGroup Academic_Catalog {
+  courses
+  course_aliases
+  curriculum_courses
+  course_learning_outcomes
+  course_instructor_references
+  curriculum_course_relations
+  curriculum_choice_groups
+  curriculum_choice_group_courses
+  course_equivalencies
+}
+
+TableGroup Academic_Requirements {
+  course_requirement_rules
+  course_requirement_nodes
+}
+
+TableGroup Academic_Policy {
+  grade_scale
+  academic_load_policies
+  academic_load_bands
+  academic_periods
+}
+
+TableGroup Planning_History {
+  degree_plans
+  degree_plan_items
+  student_course_records
+}
+
+TableGroup Course_Delivery {
+  course_offerings
+  course_offering_eligibilities
+  offering_components
+  class_sections
+  class_schedules
+}
+
+TableGroup Timetable {
+  timetables
+  timetable_items
+}
+
+TableGroup Feedback {
+  course_reports
+}
+
+TableGroup Chat {
+  chat_sessions
+  chat_messages
+}
+
+Table users {
+  user_id uuid [pk]
+  email varchar(255) [not null, unique]
+  full_name varchar(150) [not null]
+  role varchar(30) [not null]
+  is_active boolean [not null]
+  anonymized_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table study_programs {
+  study_program_id uuid [pk]
+  program_code varchar(20) [not null, unique]
+  program_name varchar(150) [not null, unique]
+  degree_level varchar(30) [not null]
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+}
+
+Table student_profiles {
+  user_id uuid [pk, ref: > users.user_id]
+  study_program_id uuid [not null, ref: > study_programs.study_program_id]
+  student_number varchar(30) [unique]
+  admission_year smallint [not null]
+  current_semester smallint [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table source_documents {
+  source_document_id uuid [pk]
+  document_title varchar(255) [not null]
+  document_type varchar(50) [not null]
+  academic_year_label varchar(30)
+  file_name varchar(255)
+  checksum_sha256 char(64)
+  source_version varchar(80)
+  source_url text
+  derived_from_source_document_id uuid [ref: > source_documents.source_document_id]
+  verification_status varchar(30) [not null]
+  last_verified_at timestamptz
+  verified_by_user_id uuid [ref: > users.user_id]
+  verification_notes text
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table curricula {
+  curriculum_id uuid [pk]
+  study_program_id uuid [not null, ref: > study_programs.study_program_id]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  curriculum_name varchar(150) [not null]
+  curriculum_year smallint [not null]
+  minimum_graduation_credits smallint [not null]
+  standard_duration_semesters smallint [not null]
+  valid_from date
+  valid_until date
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table curriculum_cohort_rules {
+  curriculum_cohort_rule_id uuid [pk]
+  study_program_id uuid [not null, ref: > study_programs.study_program_id]
+  curriculum_id uuid [not null, ref: > curricula.curriculum_id]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  admission_year_from smallint [not null]
+  admission_year_to smallint
+  priority smallint [not null]
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+}
+
+Table student_curriculum_assignments {
+  student_curriculum_assignment_id uuid [pk]
+  user_id uuid [not null, ref: > users.user_id]
+  curriculum_id uuid [not null, ref: > curricula.curriculum_id]
+  assigned_by_user_id uuid [ref: > users.user_id]
+  assignment_source varchar(30) [not null]
+  change_reason text
+  is_current boolean [not null]
+  effective_from timestamptz [not null]
+  effective_until timestamptz
+  created_at timestamptz [not null]
+}
+
+Table courses {
+  course_id uuid [pk]
+  course_code varchar(30) [not null, unique]
+  course_name varchar(200) [not null]
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table course_aliases {
+  course_alias_id uuid [pk]
+  course_id uuid [not null, ref: > courses.course_id]
+  alias_text varchar(255) [not null]
+  alias_type varchar(30) [not null]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  is_verified boolean [not null]
+  created_at timestamptz [not null]
+}
+
+Table curriculum_courses {
+  curriculum_course_id uuid [pk]
+  curriculum_id uuid [not null, ref: > curricula.curriculum_id]
+  course_id uuid [not null, ref: > courses.course_id]
+  credits_total smallint [not null]
+  lecture_credits smallint
+  tutorial_credits smallint
+  practicum_credits smallint
+  workload_hours_per_semester numeric(8,2)
+  recommended_semester smallint [not null]
+  term varchar(20) [not null]
+  course_type varchar(30) [not null]
+  course_scope varchar(30) [not null]
+  description text
+  verification_status varchar(30) [not null]
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table course_learning_outcomes {
+  learning_outcome_id uuid [pk]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  outcome_order smallint [not null]
+  outcome_text text [not null]
+}
+
+Table course_instructor_references {
+  instructor_reference_id uuid [pk]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  instructor_name varchar(200) [not null]
+  instructor_role varchar(30) [not null]
+}
+
+Table catalog_source_records {
+  catalog_source_record_id uuid [pk]
+  source_document_id uuid [not null, ref: > source_documents.source_document_id]
+  source_record_key varchar(80) [not null]
+  source_locator text
+  extraction_version varchar(80)
+  raw_program_name varchar(200)
+  raw_course_code varchar(80)
+  raw_course_name varchar(255)
+  raw_credits varchar(30)
+  raw_semester varchar(30)
+  raw_course_type varchar(100)
+  raw_prerequisite_text text
+  raw_payload jsonb [not null]
+  import_status varchar(30) [not null]
+  mapped_curriculum_course_id uuid [ref: > curriculum_courses.curriculum_course_id]
+  reviewed_by_user_id uuid [ref: > users.user_id]
+  reviewed_at timestamptz
+  review_notes text
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table curriculum_course_relations {
+  curriculum_course_relation_id uuid [pk]
+  from_curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  to_curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  relation_type varchar(30) [not null]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  verification_status varchar(30) [not null]
+  verified_by_user_id uuid [ref: > users.user_id]
+  verified_at timestamptz
+  notes text
+  created_at timestamptz [not null]
+}
+
+Table curriculum_choice_groups {
+  curriculum_choice_group_id uuid [pk]
+  curriculum_id uuid [not null, ref: > curricula.curriculum_id]
+  group_code varchar(40) [not null]
+  group_name varchar(150) [not null]
+  group_type varchar(30) [not null]
+  minimum_choices smallint [not null]
+  maximum_choices smallint
+  minimum_credits smallint [not null]
+  maximum_credits smallint
+  notes text
+}
+
+Table curriculum_choice_group_courses {
+  curriculum_choice_group_id uuid [not null, ref: > curriculum_choice_groups.curriculum_choice_group_id]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+}
+
+Table course_requirement_rules {
+  course_requirement_rule_id uuid [pk]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  catalog_source_record_id uuid [ref: > catalog_source_records.catalog_source_record_id]
+  raw_expression text [not null]
+  verification_status varchar(30) [not null]
+  verified_by_user_id uuid [ref: > users.user_id]
+  verified_at timestamptz
+  notes text
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table course_requirement_nodes {
+  course_requirement_node_id uuid [pk]
+  course_requirement_rule_id uuid [not null, ref: > course_requirement_rules.course_requirement_rule_id]
+  parent_node_id uuid [ref: > course_requirement_nodes.course_requirement_node_id]
+  node_order smallint [not null]
+  node_type varchar(40) [not null]
+  referenced_curriculum_course_id uuid [ref: > curriculum_courses.curriculum_course_id]
+  referenced_choice_group_id uuid [ref: > curriculum_choice_groups.curriculum_choice_group_id]
+  threshold_value numeric(10,2)
+  created_at timestamptz [not null]
+}
+
+Table course_equivalencies {
+  course_equivalency_id uuid [pk]
+  from_curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  to_curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  equivalency_status varchar(30) [not null]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  verified_by_user_id uuid [ref: > users.user_id]
+  verified_at timestamptz
+  notes text
+  created_at timestamptz [not null]
+}
+
+Table grade_scale {
+  grade_label varchar(2) [pk]
+  grade_points numeric(2,1) [not null]
+  is_passing boolean [not null]
+}
+
+Table academic_load_policies {
+  academic_load_policy_id uuid [pk]
+  policy_name varchar(150) [not null]
+  first_semester_max_credits smallint [not null]
+  ips_rounding_mode varchar(30)
+  retake_ips_mode varchar(30)
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  valid_from date
+  valid_until date
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table academic_load_bands {
+  academic_load_band_id uuid [pk]
+  academic_load_policy_id uuid [not null, ref: > academic_load_policies.academic_load_policy_id]
+  min_ips numeric(3,2) [not null]
+  max_ips numeric(3,2) [not null]
+  min_inclusive boolean [not null]
+  max_inclusive boolean [not null]
+  max_credits smallint [not null]
+}
+
+Table academic_periods {
+  academic_period_id uuid [pk]
+  academic_year_start smallint [not null]
+  term varchar(20) [not null]
+  start_date date
+  end_date date
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+}
+
+Table degree_plans {
+  degree_plan_id uuid [pk]
+  user_id uuid [not null, ref: > users.user_id]
+  student_curriculum_assignment_id uuid [not null, ref: > student_curriculum_assignments.student_curriculum_assignment_id]
+  plan_name varchar(100) [not null]
+  status varchar(30) [not null]
+  start_academic_year smallint
+  target_graduation_semester smallint
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table degree_plan_items {
+  degree_plan_item_id uuid [pk]
+  degree_plan_id uuid [not null, ref: > degree_plans.degree_plan_id]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  planned_semester smallint [not null]
+  planning_status varchar(20) [not null]
+  notes text
+  created_at timestamptz [not null]
+}
+
+Table student_course_records {
+  student_course_record_id uuid [pk]
+  user_id uuid [not null, ref: > users.user_id]
+  student_curriculum_assignment_id uuid [not null, ref: > student_curriculum_assignments.student_curriculum_assignment_id]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  academic_period_id uuid [not null, ref: > academic_periods.academic_period_id]
+  record_status varchar(30) [not null]
+  final_grade varchar(2) [ref: > grade_scale.grade_label]
+  completed_at date
+  notes text
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table course_offerings {
+  course_offering_id uuid [pk]
+  academic_period_id uuid [not null, ref: > academic_periods.academic_period_id]
+  course_id uuid [not null, ref: > courses.course_id]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  offering_code varchar(40) [not null]
+  offering_scope varchar(30) [not null]
+  is_term_override boolean [not null]
+  term_override_reason text
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table course_offering_eligibilities {
+  course_offering_id uuid [not null, ref: > course_offerings.course_offering_id]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+}
+
+Table offering_components {
+  offering_component_id uuid [pk]
+  course_offering_id uuid [not null, ref: > course_offerings.course_offering_id]
+  component_code varchar(30) [not null]
+  component_type varchar(30) [not null]
+  component_name varchar(100)
+  is_required boolean [not null]
+  created_at timestamptz [not null]
+}
+
+Table class_sections {
+  class_section_id uuid [pk]
+  offering_component_id uuid [not null, ref: > offering_components.offering_component_id]
+  section_code varchar(30) [not null]
+  capacity smallint
+  enrollment_status varchar(30) [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table class_schedules {
+  class_schedule_id uuid [pk]
+  class_section_id uuid [not null, ref: > class_sections.class_section_id]
+  source_document_id uuid [ref: > source_documents.source_document_id]
+  day_of_week smallint [not null]
+  start_time time [not null]
+  end_time time [not null]
+  room_name varchar(100)
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table timetables {
+  timetable_id uuid [pk]
+  user_id uuid [not null, ref: > users.user_id]
+  student_curriculum_assignment_id uuid [not null, ref: > student_curriculum_assignments.student_curriculum_assignment_id]
+  academic_period_id uuid [not null, ref: > academic_periods.academic_period_id]
+  timetable_name varchar(100) [not null]
+  is_active boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table timetable_items {
+  timetable_item_id uuid [pk]
+  timetable_id uuid [not null, ref: > timetables.timetable_id]
+  class_section_id uuid [not null, ref: > class_sections.class_section_id]
+  created_at timestamptz [not null]
+}
+
+Table chat_sessions {
+  chat_session_id uuid [pk]
+  user_id uuid [not null, ref: > users.user_id]
+  title varchar(200)
+  is_archived boolean [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table chat_messages {
+  chat_message_id uuid [pk]
+  chat_session_id uuid [not null, ref: > chat_sessions.chat_session_id]
+  sender_role varchar(20) [not null]
+  message_type varchar(30) [not null]
+  message_text text
+  action_type varchar(60)
+  payload jsonb
+  created_at timestamptz [not null]
+}
+
+Table course_reports {
+  course_report_id uuid [pk]
+  user_id uuid [not null, ref: > users.user_id]
+  curriculum_course_id uuid [not null, ref: > curriculum_courses.curriculum_course_id]
+  report_type varchar(50) [not null]
+  description text [not null]
+  status varchar(30) [not null]
+  resolved_by_user_id uuid [ref: > users.user_id]
+  resolution_notes text
+  created_at timestamptz [not null]
+  resolved_at timestamptz
+}
