@@ -3,6 +3,7 @@ dist/
 build/
 .cache/
 .env*
+!.env.example
 .vite/
 vite.config.*.timestamp-*
 *.tsbuildinfo
@@ -11,6 +12,7 @@ logs/
 *.log
 .claude-replay.*
 .tmp-*
+.backend-port
 .figma/*
 !.figma/make
 .figma/make/*
@@ -24,3 +26,17 @@ backend/.venv/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Windows metadata & Zone.Identifier
+*:Zone.Identifier
+*.Identifier
+
+# Local planning & task docs (contain internal PII / workspace IDs)
+ftmm_compass_clickup_setup.md
+ftmm_compass_plan.xlsx
+DRIVE_KNOWLEDGE.md
+KNOWLEDGE_BASE.md
+
+# Local AI agent instructions & notes
+AGENTS.md
+CLAUDE.md

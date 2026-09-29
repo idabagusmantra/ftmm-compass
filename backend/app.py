@@ -105,6 +105,42 @@ async def validate_plan_endpoint(request: PlanValidationRequest):
         raise HTTPException(status_code=500, detail=f"Error validating plan: {str(e)}")
 
 
+def find_free_port(start_port: int = 8000, max_port: int = 8050) -> int:
+    import socket
+    import os
+    env_port = os.getenv("BACKEND_PORT", os.getenv("PORT"))
+    if env_port:
+        return int(env_port)
+    for p in range(start_port, max_port + 1):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", p))
+                return p
+            except OSError:
+                continue
+    return start_port
+
+
 if __name__ == "__main__":
+    import atexit
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    from pathlib import Path
+
+    port = find_free_port()
+    port_file = Path(__file__).resolve().parent.parent / ".backend-port"
+    try:
+        port_file.write_text(str(port), encoding="utf-8")
+
+        def cleanup_port_file():
+            if port_file.exists():
+                try:
+                    port_file.unlink()
+                except OSError:
+                    pass
+
+        atexit.register(cleanup_port_file)
+    except Exception as e:
+        print(f"Warning: could not write .backend-port: {e}")
+
+    print(f"Starting FTMM Compass Backend on http://0.0.0.0:{port}")
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)

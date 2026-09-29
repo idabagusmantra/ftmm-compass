@@ -1,3 +1,4 @@
+import os
 import json
 import re
 import httpx
@@ -12,8 +13,8 @@ from data_loader import normalize_prodi
 from tools.planner import generate_study_plan
 
 
-OLLAMA_BASE_URL = "http://localhost:11434"
-DEFAULT_MODEL = "qwen2.5:7b-instruct"
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+DEFAULT_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b-instruct")
 
 
 SYSTEM_PROMPT = """Anda adalah Compass AI, asisten akademik pintar untuk Fakultas Teknologi Maju dan Multidisiplin (FTMM), Universitas Airlangga.

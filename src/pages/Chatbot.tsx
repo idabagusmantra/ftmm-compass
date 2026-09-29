@@ -50,7 +50,7 @@ interface ChatbotProps {
   onApplyPlan?: (payload: DegreePlanPayload) => void
 }
 
-const BACKEND_API_URL = "http://localhost:8000/api/chat"
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || "/api/chat"
 
 export default function Chatbot({ onApplyPlan }: ChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([

@@ -2,8 +2,8 @@ import { defineConfig, type HtmlTagDescriptor, type Plugin } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import path from "node:path"
-
-import siteConfiguration from "./.figma/make/site.json"
+import fs from "node:fs"
+import siteConfiguration from "./.figma/make/site.json" with { type: "json" }
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -25,10 +25,11 @@ export default defineConfig(({ mode }) => {
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
       figmaMakeKitPlugin({ storiesGlob: "/src/**/*.stories.{ts,tsx,js,jsx}" }),
+      backendApiProxyPlugin(),
     ],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
+        "@": path.resolve(import.meta.dirname, "./src"),
       },
     },
     server: {
@@ -43,6 +44,66 @@ export default defineConfig(({ mode }) => {
     },
   }
 })
+
+/** Proxies /api requests to the backend with dynamic port detection from .backend-port */
+function backendApiProxyPlugin(): Plugin {
+  return {
+    name: "backend-api-proxy",
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith("/api")) return next()
+
+        let port = "8000"
+        try {
+          const portFile = path.resolve(import.meta.dirname, ".backend-port")
+          if (fs.existsSync(portFile)) {
+            const savedPort = fs.readFileSync(portFile, "utf-8").trim()
+            if (savedPort) port = savedPort
+          }
+        } catch {}
+
+        const targetUrl = `http://127.0.0.1:${port}${req.url}`
+        try {
+          const headers = new Headers()
+          for (const [k, v] of Object.entries(req.headers)) {
+            if (v && k.toLowerCase() !== "host") {
+              headers.set(k, Array.isArray(v) ? v.join(", ") : v)
+            }
+          }
+          const init: RequestInit = {
+            method: req.method,
+            headers,
+            duplex: "half",
+          }
+          if (req.method !== "GET" && req.method !== "HEAD") {
+            init.body = (req as any)
+          }
+          const response = await fetch(targetUrl, init)
+          res.statusCode = response.status
+          response.headers.forEach((val, key) => res.setHeader(key, val))
+          if (response.body) {
+            const reader = response.body.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              res.write(value)
+            }
+          }
+          res.end()
+        } catch (err: any) {
+          res.statusCode = 502
+          res.setHeader("Content-Type", "application/json")
+          res.end(
+            JSON.stringify({
+              error: "Backend unavailable",
+              detail: err?.message,
+            }),
+          )
+        }
+      })
+    },
+  }
+}
 
 type FigmaSiteConfiguration = {
   title?: string
