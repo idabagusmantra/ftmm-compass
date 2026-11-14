@@ -14,6 +14,8 @@ from models import (
     Course,
     CourseOffering,
     CurriculumCourse,
+    DegreePlan,
+    DegreePlanItem,
     OfferingComponent,
     StudentCourseRecord,
     StudentProfile as StudentProfileModel,
@@ -122,8 +124,6 @@ async def get_dashboard_me(
 
         sks_completed = 0
         quality_points = 0.0
-        courses_planned = 0
-        sks_planned = 0
         for record in records:
             credits = (
                 record.curriculum_course.credits_total
@@ -133,9 +133,39 @@ async def get_dashboard_me(
             if record.record_status == "passed":
                 sks_completed += credits
                 quality_points += grade_points(record.final_grade) * credits
-            elif record.record_status == "taking":
-                courses_planned += 1
-                sks_planned += credits
+
+        # "Direncanakan" = item rencana studi aktif yang belum lulus, bukan
+        # `student_course_records.record_status='taking'` (lihat plan §9.2).
+        passed_course_ids = {
+            record.curriculum_course_id
+            for record in records
+            if record.record_status == "passed"
+        }
+        plan_items = (
+            await db.execute(
+                select(DegreePlanItem)
+                .join(
+                    DegreePlan,
+                    DegreePlan.degree_plan_id == DegreePlanItem.degree_plan_id,
+                )
+                .options(selectinload(DegreePlanItem.curriculum_course))
+                .where(
+                    DegreePlan.user_id == current_user.user_id,
+                    DegreePlan.status == "active",
+                    DegreePlanItem.planning_status == "planned",
+                )
+            )
+        ).scalars().all()
+        planned = [
+            item
+            for item in plan_items
+            if item.curriculum_course_id not in passed_course_ids
+        ]
+        courses_planned = len(planned)
+        sks_planned = sum(
+            item.curriculum_course.credits_total if item.curriculum_course else 0
+            for item in planned
+        )
 
         gpa = round(quality_points / sks_completed, 2) if sks_completed else 0.0
         stats = StudentDashboardStats(

@@ -292,7 +292,9 @@ export default function PlannerHeader({
             Matkul <span className="font-medium text-navy">Wajib</span> otomatis
             terkunci di semesternya. Matkul{" "}
             <span className="font-medium text-navy">Pilihan</span> dapat
-            dipindah-pindah.
+            dipindah-pindah. Matkul yang sudah lulus di transkrip tampil{" "}
+            <span className="font-medium text-navy">terkunci</span> dan tidak
+            ikut disimpan ulang ke skenario.
           </p>
         </div>
         <div className="flex flex-wrap gap-2.5 items-center">

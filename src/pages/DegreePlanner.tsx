@@ -57,6 +57,12 @@ export default function DegreePlanner({
     appliedSummary,
     resetPlan,
     setSchedule,
+    completedBySemester,
+    completedByKey,
+    markPassed,
+    unmarkPassed,
+    isMutating: isMutatingRecord,
+    error: recordError,
   } = planner
   const [activeTab, setActiveTab] = useState<Tab>(initialTab || "roadmap")
 
@@ -79,22 +85,64 @@ export default function DegreePlanner({
   const [selectedSections, setSelectedSections] =
     useState<Record<string, string>>({})
   const activeReligion = useMemo(() => {
-    for (const courses of Object.values(plan)) {
+    const completed = Object.values(completedBySemester).flat()
+    for (const courses of [...Object.values(plan), completed]) {
       for (const c of courses) {
         const rel = courseReligion(c)
         if (rel && rel !== "Umum") return rel
       }
     }
     return null
-  }, [plan])
+  }, [completedBySemester, plan])
 
   const placedMap = useMemo(() => {
     const map = new Map<string, number>()
     Object.entries(plan).forEach(([semStr, list]) => {
       list.forEach((c) => map.set(courseKey(c), Number(semStr)))
     })
+    Object.entries(completedBySemester).forEach(([semStr, list]) => {
+      list.forEach((c) => map.set(courseKey(c), Number(semStr)))
+    })
     return map
-  }, [plan])
+  }, [completedBySemester, plan])
+
+  const completedKeys = useMemo(
+    () => new Set(completedByKey.keys()),
+    [completedByKey],
+  )
+
+  const displayPlan = useMemo(() => {
+    const merged: Record<number, PlacedCourse[]> = {}
+    const semesters = new Set([
+      ...Object.keys(plan),
+      ...Object.keys(completedBySemester),
+    ])
+    for (const key of semesters) {
+      const semester = Number(key)
+      merged[semester] = [
+        ...(completedBySemester[semester] ?? []),
+        ...(plan[semester] ?? []),
+      ]
+    }
+    return merged
+  }, [completedBySemester, plan])
+
+  useEffect(() => {
+    if (completedKeys.size === 0) return
+    const hasDuplicate = Object.values(plan).some((list) =>
+      list.some((course) => completedKeys.has(courseKey(course))),
+    )
+    if (!hasDuplicate) return
+    setPlan((prev) => {
+      const next: Record<number, PlacedCourse[]> = {}
+      for (const [semester, list] of Object.entries(prev)) {
+        next[Number(semester)] = list.filter(
+          (course) => !completedKeys.has(courseKey(course)),
+        )
+      }
+      return next
+    })
+  }, [completedKeys, plan, setPlan])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -412,6 +460,12 @@ export default function DegreePlanner({
             onRetrySave={retrySave}
           />
 
+          {recordError && (
+            <div className="mb-3 rounded-xl border border-orange/40 bg-orange/10 px-3.5 py-2.5 text-xs font-medium text-orange">
+              {recordError}
+            </div>
+          )}
+
           <div className="flex-1 overflow-x-auto pb-1 min-h-0">
             <div className="flex gap-4 min-w-max h-full">
               {SEMESTERS.map((sem) => (
@@ -419,6 +473,7 @@ export default function DegreePlanner({
                   key={sem}
                   sem={sem}
                   courses={plan[sem] || []}
+                  completedCourses={completedBySemester[sem] || []}
                   state={semState(sem)}
                   dragging={dragging}
                   dropTarget={dropTarget}
@@ -458,6 +513,7 @@ export default function DegreePlanner({
             setPickerType={setPickerType}
             catalog={catalog}
             placedMap={placedMap}
+            completedKeys={completedKeys}
             onClose={() => setPickerSem(null)}
             onAddCourse={handleAddCourseFromModal}
             currentSemesterCourses={
@@ -469,9 +525,26 @@ export default function DegreePlanner({
           <CourseInspectModal
             course={inspectCourse ? inspectCourse.course : null}
             currentSem={inspectCourse ? inspectCourse.sem : 1}
-            allPlan={plan}
+            allPlan={displayPlan}
             onClose={() => setInspectCourse(null)}
             onDeleteCourse={deleteCourse}
+            onMarkPassed={async (course, grade) => {
+              const ok = await markPassed(course.code || course.id, grade)
+              if (ok) setInspectCourse(null)
+              return ok
+            }}
+            onUnmarkPassed={async (recordId) => {
+              const ok = await unmarkPassed(recordId)
+              if (ok) setInspectCourse(null)
+              return ok
+            }}
+            isMutatingRecord={isMutatingRecord}
+            completedGrade={
+              inspectCourse
+                ? (completedByKey.get(courseKey(inspectCourse.course))
+                    ?.final_grade ?? null)
+                : null
+            }
             onOpenInCourseFinder={(c) => {
               onNavigate?.("course-finder", { course: c })
             }}

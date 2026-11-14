@@ -10,14 +10,16 @@ import {
 import type { Course, ScheduleItem } from "../data"
 import type { DegreePlanPayload } from "../domain/plan"
 import { useDegreeDrafts, type DegreeDraftsReturn } from "./degreeDrafts"
+import { useCourseRecords, type CourseRecordsReturn } from "./courseRecords"
 import type { PlacedCourse } from "../components/degree-planner/types"
 import { parityOfSemester } from "../domain/academics"
 import { normalizeCourseType } from "../domain/course"
 
 interface PlannerContextValue
-  extends DegreeDraftsReturn {
-  /** Jadwal yang sedang ditampilkan planner; dashboard merender ini bila terisi. */
-  /** Menulis rencana AI ke draft aktif, menyimpan rencana sebelumnya untuk reset. */
+  extends DegreeDraftsReturn,
+    CourseRecordsReturn {
+    /** Jadwal yang sedang ditampilkan planner; dashboard merender ini bila terisi. */
+    /** Menulis rencana AI ke draft aktif, menyimpan rencana sebelumnya untuk reset. */
   pendingCourses: Course[]
   addPendingCourse: (course: Course) => void
   removePendingCourse: (courseId: string) => void
@@ -60,6 +62,7 @@ function planFromPayload(
 
 export function PlannerProvider({ children }: { children: ReactNode }) {
   const storage = useDegreeDrafts()
+  const courseRecords = useCourseRecords()
   const [pendingCourses, setPendingCourses] = useState<Course[]>([])
   const [appliedSummary, setAppliedSummary] =
     useState<DegreePlanPayload["summary"] | null>(null)
@@ -101,6 +104,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       ...storage,
+      ...courseRecords,
       pendingCourses,
       addPendingCourse,
       removePendingCourse,
@@ -112,6 +116,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     }),
     [
       storage,
+      courseRecords,
       pendingCourses,
       addPendingCourse,
       removePendingCourse,

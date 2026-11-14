@@ -16,6 +16,7 @@ interface CoursePickerModalProps {
   setPickerType: (t: "all" | "Pilihan" | "Wajib") => void
   catalog: Course[]
   placedMap: Map<string, number>
+  completedKeys?: Set<string>
   onClose: () => void
   onAddCourse: (course: Course) => void
   currentSemesterCourses?: PlacedCourse[]
@@ -31,6 +32,7 @@ export default function CoursePickerModal({
   setPickerType,
   catalog,
   placedMap,
+  completedKeys,
   onClose,
   onAddCourse,
   currentSemesterCourses,
@@ -217,6 +219,7 @@ export default function CoursePickerModal({
         ) : (
           filtered.map((course) => {
             const placedInSem = placedMap.get(courseKey(course))
+            const isCompleted = completedKeys?.has(courseKey(course)) ?? false
             const isAlreadyPlaced = placedInSem !== undefined
             const religion = courseReligion(course)
             const isReligionBlocked = Boolean(
@@ -240,6 +243,11 @@ export default function CoursePickerModal({
                 <div className="min-w-0 flex-1">
                   <div className="mb-1">
                     <CourseBadges course={course}>
+                      {isCompleted && (
+                        <span className="text-[9px] font-bold bg-teal/15 text-navy border border-teal/30 px-1.5 py-0.5 rounded">
+                          Lulus (Terkunci)
+                        </span>
+                      )}
                       {isReligionBlocked && (
                         <span className="text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded">
                           Terkunci: Agama {activeReligion}
@@ -256,7 +264,7 @@ export default function CoursePickerModal({
                   {isAlreadyPlaced ? (
                     <span className="px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium text-muted bg-background border border-border flex items-center gap-1.5">
                       <Check className="w-3.5 h-3.5 text-teal" />
-                      Di Sem {placedInSem}
+                      {isCompleted ? "Sudah lulus" : `Di Sem ${placedInSem}`}
                     </span>
                   ) : isReligionBlocked ? (
                     <span

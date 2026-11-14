@@ -128,7 +128,10 @@ Kontainer `ftmm-compass-gateway` secara otomatis terhubung ke `ftmm-network` dan
 - `PUT /api/v1/degree-plans/{plan_id}/items` — Ganti seluruh isi rencana (idempoten), 422 untuk kode MK asing/paritas salah/duplikat.
 - `PATCH /api/v1/degree-plans/{plan_id}` — Ubah nama dan/atau status (`draft`, `active`); satu `active` per pengguna.
 - `DELETE /api/v1/degree-plans/{plan_id}` — Hapus skenario beserta itemnya (204).
-- `GET /api/v1/dashboard/me` — Telemetri dashboard adaptif per peran (student/lecturer/faculty_staff/admin).
+- `GET /api/v1/me/course-records` — Transkrip mahasiswa aktif: status (`taking`/`passed`/`failed`/`transferred`), nilai, dan periode tiap MK.
+- `POST /api/v1/me/course-records` — Tandai MK lulus (`course_code`, `final_grade`); upsert attempt periode aktif, 409 bila sudah lulus, 422 untuk nilai gagal/tidak dikenal.
+- `DELETE /api/v1/me/course-records/{record_id}` — Batalkan catatan transkrip milik sendiri (204).
+- `GET /api/v1/dashboard/me` — Telemetri dashboard adaptif per peran (student/lecturer/faculty_staff/admin). Untuk mahasiswa, `courses_planned`/`sks_planned` = item skenario `active` yang belum lulus.
 - `GET /api/v1/academic-periods/current` — Periode akademik aktif.
 - `GET /api/v1/polling/periods/active` — Periode polling MK pilihan yang sedang dibuka.
 - `POST /api/v1/admin/polling/periods` — Buka periode polling baru (admin).

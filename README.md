@@ -57,7 +57,7 @@ FTMM Compass helps students plan their degree journey across 8 semesters, explor
 ## Key Features
 
 ### 1. Dashboard
-- Ringkasan statistik akademik dari `/api/v1/dashboard/me`: SKS kumulatif, semester aktif, dan IPK (data PostgreSQL, tanpa angka demo; tampilan kosong bila DB belum di-seed).
+- Ringkasan statistik akademik dari `/api/v1/dashboard/me`: SKS kumulatif, semester aktif, dan IPK (data PostgreSQL, tanpa angka demo; tampilan kosong bila DB belum di-seed). Angka **Direncanakan** dihitung dari item skenario rencana studi `active` yang belum lulus, bukan dari `record_status='taking'`.
 - Widget jadwal mingguan interaktif (*Timetable*) dengan deteksi bentrok jadwal (*conflict highlighting*).
 
 ### 2. Course Finder
@@ -69,6 +69,7 @@ FTMM Compass helps students plan their degree journey across 8 semesters, explor
   - Mata kuliah **Wajib** otomatis terkunci di semesternya.
   - Mata kuliah **Pilihan** dapat dipindah-pindah via *drag and drop*.
   - Menegakkan aturan paritas semester (**Ganjil/Odd** $\rightarrow$ Semester 1, 3, 5, 7; **Genap/Even** $\rightarrow$ Semester 2, 4, 6, 8).
+  - Mata kuliah yang sudah **lulus** di transkrip (`/api/v1/me/course-records`) tampil terkunci di semester kurikulumnya dan otomatis dikeluarkan dari payload skenario; MK yang sedang ditempuh dapat ditandai selesai (beserta nilai) atau dibatalkan dari modal detail.
 - Rencana disimpan di server (`degree_plans` / `degree_plan_items` via `/api/v1/degree-plans`), bukan di `localStorage`: data bertahan setelah ganti perangkat atau membersihkan browser, dan status simpan ditampilkan di header.
 - Beberapa skenario rencana per mahasiswa (maksimal 10, satu `active`) dengan aksi salin dan hapus skenario.
 - Tab **Jadwal Aktif** untuk melihat distribusi kelas per semester.
@@ -364,6 +365,7 @@ ftmm-compass-ui/
 │   ├── catalog.py                 # Pipeline katalog: baca DB → normalisasi → list/get course
 │   ├── academics.py               # Batas SKS, total kredit, konversi nilai, parity
 │   ├── plan_storage.py            # Persistensi degree-plan & exception domain
+│   ├── course_records.py          # Transkrip mahasiswa: baca, tandai lulus, batalkan
 │   ├── api/                       # Router per resource (dipasang di /api/v1 dan /api)
 │   ├── migrations/                # Revisi Alembic (baseline skema + perubahan berikutnya)
 │   ├── pyproject.toml             # Konfigurasi dependensi uv (Astral)
@@ -397,12 +399,14 @@ ftmm-compass-ui/
 │   │   ├── polling.tsx            # Polling MK pilihan
 │   │   ├── academic.tsx           # Periode akademik aktif
 │   │   ├── planner.tsx            # Rencana studi aktif & jembatan ke draft
-│   │   └── degreeDrafts.ts        # Draft rencana di server: muat, simpan, salin, hapus
+│   │   ├── degreeDrafts.ts        # Draft rencana di server: muat, simpan, salin, hapus
+│   │   └── courseRecords.ts       # Transkrip: MK lulus terkunci di planner
 │   ├── services/                  # Binding endpoint per resource
 │   │   ├── authService.ts         # Login, profil, notifikasi
 │   │   ├── dashboardService.ts    # Telemetri dashboard
 │   │   ├── academicService.ts     # Periode akademik
 │   │   ├── degreePlanService.ts   # CRUD degree-plan (rencana studi tersimpan)
+│   │   ├── courseRecordService.ts # Transkrip MK: list, tandai lulus, batalkan
 │   │   └── pollingService.ts      # Periode & vote MK pilihan
 │   ├── pages/
 │   │   ├── Login.tsx              # Login ke /api/v1/auth/login (JWT)

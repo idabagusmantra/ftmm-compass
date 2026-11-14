@@ -182,6 +182,41 @@ class DegreePlanCatalogResponse(BaseModel):
     data: List[CourseModel] = Field(default_factory=list)
 
 
+RecordStatus = Literal["taking", "passed", "failed", "transferred"]
+
+
+class CourseRecordPeriod(BaseModel):
+    academic_year_start: int
+    term: str
+    label: str
+
+
+class CourseRecordResponse(BaseModel):
+    id: str
+    course_id: str
+    code: str
+    name: str
+    credits: int
+    semester: int
+    type: Literal["Wajib", "Pilihan"]
+    parity: Literal["odd", "even"]
+    desc: str = ""
+    record_status: RecordStatus
+    final_grade: Optional[str] = None
+    completed_at: Optional[date] = None
+    period: CourseRecordPeriod
+
+
+class CourseRecordListResponse(BaseModel):
+    data: List[CourseRecordResponse] = Field(default_factory=list)
+    meta: Dict[str, int] = Field(default_factory=dict)
+
+
+class CourseRecordCreateRequest(BaseModel):
+    course_code: str = Field(min_length=1, max_length=40)
+    final_grade: str = Field(min_length=1, max_length=2)
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: str

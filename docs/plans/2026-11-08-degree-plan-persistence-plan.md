@@ -3,7 +3,7 @@
 **Document ID:** `PLAN-DEGREE-PLAN-DB-20261108`
 **Branch:** `refactor/untangle-audit` (lanjutkan di branch ini; dilarang `main`)
 **Basis commit:** `8d4d6c4`
-**Status:** Dieksekusi 2026-11-08 (lihat §12 catatan implementasi)
+**Status:** Selesai dieksekusi — inti 2026-11-08 (§12), Fase 2 item #1–#3 2026-11-14 (§13). Sisa: §9.4 (kolaborasi dosen/PA) tetap backlog.
 
 ---
 
@@ -529,12 +529,12 @@ Plus smoke UI di `http://localhost:8443` (browser headless, 0 console error) dan
 
 ---
 
-## 9. Di Luar Scope (Fase 2, jangan dicampur)
+## 9. Fase 2: Status Item
 
-1. **`GET /api/v1/me/course-records`**: turunkan `status: "completed"` dari `student_course_records` (lulus) agar legenda "Lulus (Terkunci)" nyata dan `PlacedCourse.status` punya dua sumber yang jelas.
-2. **Rekonsiliasi Dashboard ↔ Planner**: "Direncanakan" di Dashboard tetap berarti MK yang sedang ditempuh (`record_status='taking'`), bukan draft. Bila produk ingin satu angka, definisikan lebih dulu semantiknya; jangan gabungkan dua tabel tanpa aturan.
-3. Sinkronisasi `student_course_records` ketika mahasiswa menandai MK selesai.
-4. Kolaborasi dosen/PA (`status='archived'`, review plan) — tabel sudah mendukung, UI belum.
+1. **`GET /api/v1/me/course-records`** — **SELESAI** (2026-11-14). Resource transkrip + `POST` (tandai lulus, upsert attempt periode aktif) + `DELETE` (batalkan). Planner menampilkan MK lulus terkunci di semester kurikulumnya dan mengeluarkannya dari payload skenario.
+2. **Rekonsiliasi Dashboard ↔ Planner** — **SELESAI** (2026-11-14). Semantik dipilih: "Direncanakan" = item skenario `active` berstatus `planned` yang belum punya record `passed`. `record_status='taking'` tidak lagi dipakai untuk angka ini.
+3. **Sinkronisasi `student_course_records` saat MK ditandai selesai** — **SELESAI** (2026-11-14). `POST /api/v1/me/course-records` menulis periode aktif, nilai wajib lulus, dan menolak duplikat 409.
+4. **Kolaborasi dosen/PA** (`status='archived'`, review plan) — **BELUM**, tetap backlog. Tabel sudah mendukung; `PATCH` masih membatasi `draft|active` dan belum ada UI review.
 
 ---
 
@@ -580,3 +580,26 @@ Catatan operasional:
 
 - `DELETE .../{id}` mengembalikan 204; DevTools Chromium mencatat `net::ERR_ABORTED` untuk respons tanpa body, tetapi `fetch()` tetap resolve status 204 (diverifikasi: `{created: 201, deleted: 204}` tanpa exception).
 - 16 tes otomatis di `backend/tests/test_degree_plans.py` lulus; smoke browser: muat, tambah MK (PUT 200), reload (susunan bertahan), salin skenario (POST+PATCH), hapus skenario (DELETE 204 + aktivasi sisanya), migrasi `localStorage` (key terhapus, draft lama muncul), dan banner "Coba lagi" saat backend dimatikan.
+
+---
+
+## 13. Catatan Eksekusi Fase 2 (2026-11-14)
+
+Branch: `feat/degree-plan-phase2` (basis `upstream/main` = `740df20`).
+
+| Area | Perubahan | Bukti |
+|---|---|---|
+| Resource transkrip | `backend/course_records.py` + `backend/api/course_records.py`: `GET/POST/DELETE /api/v1/me/course-records` (alias legacy `/api`), error envelope `{detail, error{code,message,details}}` | `curl` login mahasiswa: `GET` 200 `meta.total=22`, `POST` 201, `DELETE` 204 |
+| Skema & ORM | `CourseRecord*` di `schemas.py`; `StudentCourseRecord.completed_at`/`created_at` dipetakan (kolom sudah ada di baseline) | `ruff check .` bersih |
+| Rekonsiliasi Dashboard | `api/dashboard.py`: `courses_planned`/`sks_planned` = item `degree_plans.status='active'` + `planning_status='planned'` yang belum `passed` | tes `test_dashboard_planned_comes_from_active_plan`; UI: 1 MK/3 SKS tampil setelah item ditambah |
+| Planner frontend | `services/courseRecordService.ts`, `state/courseRecords.ts` (di-merge ke `PlannerProvider`), `SemesterColumn` merender MK lulus lebih dulu, picker menandai "Lulus (Terkunci)" / "Sudah lulus", `CourseInspectModal` punya "Tandai Selesai" + "Batalkan status lulus" | `pnpm typecheck` 0; smoke browser: tambah TSD301 → tandai A → kartu LULUS → batalkan → kartu hilang, `DELETE 204` |
+| Konsistensi draft | MK yang sudah lulus dikeluarkan dari `plan` (effect di `DegreePlanner.tsx`) agar tidak tampil ganda setelah ditandai selesai | 16 kartu transkrip, 0 duplikat setelah reload; `degree_plan_items` aktif = 0 |
+| Tes | `backend/tests/test_course_records.py` (10 tes: auth 401, non-student 403, list, create, upsert, duplikat 409, kode asing 422, nilai gagal/tak dikenal 422, delete 204/404, rekonsiliasi dashboard) | `pytest tests -q` → seluruh suite lulus |
+| Dokumentasi | `backend/README.md` (3 endpoint + semantik dashboard), `README.md` (fitur planner/dashboard + pohon berkas) | — |
+
+Penyimpangan dari daftar Fase 2:
+
+1. Item #2 tidak memakai aturan gabungan dua tabel: Dashboard dan Planner membaca satu sumber (`degree_plan_items`), dan record `passed` dipakai hanya sebagai pengecualian. `record_status='taking'` berhenti menjadi angka "Direncanakan".
+2. Item #3 memakai `POST` idempoten per (MK, periode aktif) — record `taking` pada periode yang sama di-upgrade ke `passed`, bukan membuat baris kedua. Tanpa itu, constraint `student_course_records_attempt_unique` akan menolak.
+3. MK lulus ditempatkan di `curriculum_courses.recommended_semester` (1–8), bukan semester periode saat nilai masuk. Alasan: kartu harus punya posisi stabil setelah reload dan trigger rencana memakai acuan yang sama.
+4. Item #4 (kolaborasi dosen/PA) sengaja tidak dikerjakan; lihat §9.4.

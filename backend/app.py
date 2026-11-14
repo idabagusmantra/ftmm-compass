@@ -19,6 +19,7 @@ from api import (
     academic_periods,
     auth,
     chat,
+    course_records,
     courses,
     dashboard,
     degree_plans,
@@ -105,6 +106,7 @@ for resource in (
     dashboard,
     academic_periods,
     degree_plans,
+    course_records,
 ):
     mount_resource(resource.router)
 

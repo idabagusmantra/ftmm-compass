@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   X,
   BookOpen,
@@ -24,7 +25,13 @@ interface CourseInspectModalProps {
   onClose: () => void
   onDeleteCourse?: (courseId: string, sem: number) => void
   onOpenInCourseFinder?: (course: PlacedCourse) => void
+  onMarkPassed?: (course: PlacedCourse, grade: string) => Promise<boolean>
+  onUnmarkPassed?: (recordId: string) => Promise<boolean>
+  isMutatingRecord?: boolean
+  completedGrade?: string | null
 }
+
+const PASSING_GRADES = ["A", "AB", "B", "BC", "C", "D"]
 
 export default function CourseInspectModal({
   course,
@@ -33,7 +40,14 @@ export default function CourseInspectModal({
   onClose,
   onDeleteCourse,
   onOpenInCourseFinder,
+  onMarkPassed,
+  onUnmarkPassed,
+  isMutatingRecord,
+  completedGrade,
 }: CourseInspectModalProps) {
+  const [grade, setGrade] = useState("A")
+  const [actionError, setActionError] = useState<string | null>(null)
+
   if (!course) return null
 
   const completed = isCompleted(course)
@@ -124,6 +138,90 @@ export default function CourseInspectModal({
             </span>
           </div>
         </div>
+
+        {(onMarkPassed || onUnmarkPassed) && (
+          <div className="rounded-xl border border-border bg-background p-3.5">
+            {completed ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-navy">
+                  Tercatat <strong>lulus</strong>
+                  {completedGrade ? (
+                    <>
+                      {" "}
+                      dengan nilai <strong>{completedGrade}</strong>
+                    </>
+                  ) : null}
+                  . Mata kuliah ini terkunci dari perubahan rencana.
+                </span>
+                {onUnmarkPassed && (
+                  <button
+                    type="button"
+                    disabled={isMutatingRecord}
+                    onClick={async () => {
+                      setActionError(null)
+                      const ok = await onUnmarkPassed(course.id)
+                      if (!ok) {
+                        setActionError(
+                          "Gagal membatalkan status lulus mata kuliah.",
+                        )
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg text-orange hover:bg-orange/10 border border-border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Batalkan status lulus
+                  </button>
+                )}
+              </div>
+            ) : (
+              onMarkPassed && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <label
+                    htmlFor="record-grade"
+                    className="text-xs font-medium text-navy"
+                  >
+                    Nilai akhir
+                  </label>
+                  <select
+                    id="record-grade"
+                    value={grade}
+                    onChange={(e) => setGrade(e.target.value)}
+                    disabled={isMutatingRecord}
+                    className="text-xs font-mono font-semibold px-2 py-1.5 rounded-lg bg-surface border border-border text-navy focus:outline-none focus:ring-1 focus:ring-navy cursor-pointer"
+                  >
+                    {PASSING_GRADES.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={isMutatingRecord}
+                    onClick={async () => {
+                      setActionError(null)
+                      const ok = await onMarkPassed(course, grade)
+                      if (!ok) {
+                        setActionError(
+                          "Gagal menandai mata kuliah selesai. Pastikan backend aktif lalu coba lagi.",
+                        )
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-navy text-white hover:bg-navy-light transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isMutatingRecord ? "Menyimpan..." : "Tandai Selesai"}
+                  </button>
+                  <span className="text-[11px] text-muted">
+                    Mata kuliah yang selesai akan terkunci di semester
+                    kurikulumnya.
+                  </span>
+                </div>
+              )
+            )}
+            {actionError && (
+              <p className="mt-2 text-[11px] text-orange">{actionError}</p>
+            )}
+          </div>
+        )}
 
         <div>
           <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-muted mb-2 flex items-center gap-1.5">

@@ -176,6 +176,7 @@ export function PlannerCourseCard({
 interface SemesterColumnProps {
   sem: number
   courses: PlacedCourse[]
+  completedCourses?: PlacedCourse[]
   state: SemesterState
   dragging: {
     course: PlacedCourse
@@ -206,6 +207,7 @@ interface SemesterColumnProps {
 export function SemesterColumn({
   sem,
   courses,
+  completedCourses = [],
   state,
   dragging,
   dropTarget,
@@ -220,7 +222,10 @@ export function SemesterColumn({
   onOpenManualPicker,
   onSelectCourse,
 }: SemesterColumnProps) {
-  const totalSKS = courses.reduce((acc, c) => acc + c.credits, 0)
+  const totalSKS = [...completedCourses, ...courses].reduce(
+    (acc, c) => acc + c.credits,
+    0,
+  )
   const odd = isOddSemester(sem)
   return (
     <div
@@ -281,6 +286,22 @@ export function SemesterColumn({
       )}
 
       <div className="flex-1 p-3 space-y-2 overflow-y-auto min-h-[200px]">
+        {completedCourses.map((course) => (
+          <PlannerCourseCard
+            key={course.id}
+            course={course}
+            sem={sem}
+            idx={0}
+            isDropTargetTop={false}
+            onDragStart={onCardDragStart}
+            onDragOver={onCardDragOver}
+            onDrop={onCardDrop}
+            onDragEnd={onDragEnd}
+            onDelete={onDeleteCourse}
+            onSelect={onSelectCourse}
+          />
+        ))}
+
         {courses.map((course, idx) => (
           <PlannerCourseCard
             key={course.id}
@@ -299,7 +320,7 @@ export function SemesterColumn({
           />
         ))}
 
-        {courses.length === 0 && (
+        {courses.length === 0 && completedCourses.length === 0 && (
           <div
             className={cn(
               "h-[160px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-3 text-center transition-colors",

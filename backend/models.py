@@ -338,6 +338,12 @@ class StudentCourseRecord(Base):
     )
     record_status: Mapped[str] = mapped_column(String(30), nullable=False)
     final_grade: Mapped[Optional[str]] = mapped_column(String(2), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
 
     curriculum_course: Mapped["CurriculumCourse"] = relationship("CurriculumCourse")
     academic_period: Mapped["AcademicPeriod"] = relationship("AcademicPeriod")
